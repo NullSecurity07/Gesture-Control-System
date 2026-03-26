@@ -61,7 +61,7 @@ Webcam Input (Live Feed)
 **1. Environment Initialization**
 
 ```bash
-git clone https://github.com/your-username/air-hand-gesture.git
+git clone https://github.com/NullSecurity07/Gesture-Control-System
 cd air-hand-gesture
 
 python -m venv venv_mp
