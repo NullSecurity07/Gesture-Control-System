@@ -51,3 +51,7 @@ Prototype, built and used on Hyprland. Known gaps: `collect_swipes.py` writes `s
 ## Built by
 
 Built by [Adithya Poojary](https://adithyapoojary.is-a.dev), founder of ThreatScope. [More projects](https://adithyapoojary.is-a.dev/work/) · [LinkedIn](https://www.linkedin.com/in/adithyapoojary/)
+
+## License
+
+MIT. See [LICENSE](LICENSE).
