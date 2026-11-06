@@ -1,143 +1,53 @@
-<div align="center">
+<p align="center"><a href="https://adithyapoojary.is-a.dev"><picture><source media="(prefers-color-scheme: light)" srcset=".github/readme/banner-light.svg"><img src=".github/readme/banner-dark.svg" alt="Gesture-Control-System: Wave to run commands, only when it sees your face" width="100%"></picture></a></p>
+<p align="center"><picture><source media="(prefers-color-scheme: light)" srcset=".github/readme/badges-light.svg"><img src=".github/readme/badges-dark.svg" alt="python: 3.11 to 3.12, vision: MediaPipe, unlock: face recognition, status: prototype" height="30"></picture></p>
 
-![Gesture Control Header](https://capsule-render.vercel.app/api?type=waving&color=0:0f0518,50:1e1030,100:8b5cf6&height=220&section=header&text=Gesture%20Control&fontSize=64&fontColor=ffffff&fontAlignY=38&fontAlign=50&desc=Biometric%20Auth%20and%20Kinetic%20Shell%20Automation&descSize=16&descAlignY=58&descAlign=50&descColor=c4b5fd80&animation=fadeIn)
+Gesture Control turns hand gestures into shell commands, but only while the camera sees its owner's face. A hands-free desktop controller for Linux, with a face check standing between a wave and your terminal.
 
-*Seamlessly map physical movement to system execution — secured by facial recognition.*
+## Highlights
 
-</div>
+- **Face first.** Every 10 frames the webcam checks for the owner's face against a reference photo. No match, no commands.
+- **Swipes switch workspaces.** A swipe left or right runs any shell command you map in `config.py`. Out of the box it moves between Hyprland workspaces.
+- **Thumbs up to quit.** A static gesture, held steady over a 20-frame buffer, closes the controller.
+- **Trained on your hands.** Collection scripts record your own gestures, and scikit-learn trains the models: a HOG + SVM classifier for the thumbs up and a Random Forest over 15-frame landmark sequences for swipes.
+- **Cooldowns built in.** Each action waits before the next one fires, and a desktop notification says what just ran.
 
----
+## How it works
 
-<div align="center">
-
-### — Overview —
-
-</div>
-
-This project implements a real-time computer vision pipeline that translates hand gestures into customizable shell commands. Built with a zero-trust approach, the system remains dormant until it successfully verifies the operator's identity via facial recognition. 
-
-Once authenticated, it processes both static (posture-based) and dynamic (motion-based) hand gestures, allowing users to execute system-level operations like switching workspaces or launching applications entirely hands-free.
-
----
-
-<div align="center">
-
-### — Architecture —
-
-</div>
-
-| Component | Function |
-|:---|:---|
-| `main.py` | Core runtime loop, camera interfacing, and execution dispatcher |
-| `config.py` | Configuration state (Camera indexing, action mapping, paths) |
-| `collect_*.py` | Modular scripts for capturing training data (static vs. dynamic) |
-| `train_*.py` | Scikit-learn compilation scripts for generating `.pkl` models |
-| `run.sh` | Shell wrapper for environment execution |
-
-<br/>
-
-**Execution Pipeline**
-
-```text
-Webcam Input (Live Feed)
-    └─ Biometric Gate (face_recognition / dlib)
-        ├─ Unrecognized → System Locked
-        └─ Authenticated → Hand Landmark Tracking (MediaPipe)
-            ├─ Static Classifier (gesture_model.pkl)
-            │   └─ "Thumbs Up" → Exit Application
-            └─ Dynamic Classifier (swipe_model.pkl)
-                ├─ "Swipe Left" → Trigger Shell Command (e.g., Workspace Prev)
-                └─ "Swipe Right" → Trigger Shell Command (e.g., Workspace Next)
+```mermaid
+flowchart LR
+  C[Webcam] --> F{Owner's face?}
+  F -- no --> L[Locked, gestures ignored]
+  F -- yes --> H[MediaPipe hand landmarks]
+  H --> S[Swipe model] --> CMD[Mapped shell command]
+  H --> T[Thumbs-up model] --> Q[Exit]
 ```
 
----
+1. `face_recognition` (dlib) compares the live face to `me.jpg`.
+2. While the owner is in frame, MediaPipe tracks one hand.
+3. The swipe model reads the last 15 frames of wrist and fingertip positions; the static model reads a HOG crop of the hand.
+4. A recognised gesture runs its command from `ACTIONS` in `config.py`.
 
-<div align="center">
+## Quick start
 
-### — Setup —
-
-</div>
-
-**1. Environment Initialization**
+Linux with a webcam. Python 3.11 or 3.12 (pinned MediaPipe and SciPy versions need both bounds). dlib builds from source, so install CMake and a C++ compiler first.
 
 ```bash
-git clone https://github.com/NullSecurity07/Gesture-Control-System
-cd air-hand-gesture
-
-python -m venv venv_mp
-source venv_mp/bin/activate  # venv_mp\Scripts\activate on Windows
-
+git clone https://github.com/NullSecurity07/Gesture-Control-System.git
+cd Gesture-Control-System
+python -m venv venv_mp && source venv_mp/bin/activate
 pip install -r requirements.txt
 ```
 
-**2. Biometric Configuration**
+1. Put a clear photo of your face in the repo root as `me.jpg`.
+2. Map gestures to commands in `config.py` (`ACTIONS`). The defaults call `hyprctl`.
+3. Record your own thumbs-up and background images with `python collect_data.py` (the repo ships no photos), then train: `python train.py`.
+4. Record and train swipes: `pip install cvzone`, then `python collect_swipes_cvzone.py` and `python train_swipes.py`.
+5. Run it: `./run.sh main.py`
 
-Place a clear, unobstructed image of your face in the root directory and name it `me.jpg`. The system will use this reference file to unlock the gesture controller.
+## Status
 
-**3. Action Mapping**
+Prototype, built and used on Hyprland. Known gaps: `collect_swipes.py` writes `swipe_data.csv` while the trainers read `swipe_data_cvzone.csv`, so use the cvzone collector for now; `cvzone` and `xgboost` (for `train_swipes_advanced.py`) are not in `requirements.txt` yet.
 
-Edit `config.py` to map recognized gestures to your preferred OS shell commands (e.g., mapping `ACTIONS['swipe_left']` to a specific `wmctrl` or `xdotool` command).
+## Built by
 
----
-
-<div align="center">
-
-### — Training Models —
-
-</div>
-
-The system requires custom training data to accurately identify your specific hand topology and environment. 
-
-**Static Gestures (Thumbs Up)**
-```bash
-python collect_data.py   # Follow terminal prompts to record poses
-python train.py          # Compiles data into gesture_model.pkl
-```
-
-**Dynamic Gestures (Swipes)**
-```bash
-python collect_swipes.py # Follow terminal prompts to record motion sequences
-python train_swipes.py   # Compiles data into swipe_model.pkl
-```
-
----
-
-<div align="center">
-
-### — Usage —
-
-</div>
-
-Launch the main controller via the provided shell wrapper:
-
-```bash
-./run.sh main.py
-```
-
-1. Face the camera to pass the biometric check.
-2. Perform configured swipe gestures to control your machine.
-3. Show a "Thumbs Up" to cleanly terminate the process.
-
----
-
-<div align="center">
-
-### — Stack —
-
-</div>
-
-| Technology | Purpose |
-|:---|:---|
-| **Python** | Application logic and model training |
-| **MediaPipe** | High-fidelity hand landmark detection and tracking |
-| **dlib / face-recognition** | Biometric authentication and face encoding |
-| **Scikit-learn** | Machine learning backend for gesture classification |
-| **OpenCV** | Video capture and frame manipulation |
-
-<br/>
-
-<div align="center">
-
-![Gesture Control Footer](https://capsule-render.vercel.app/api?type=waving&color=0:8b5cf6,50:1e1030,100:0f0518&height=120&section=footer&animation=fadeIn)
-
-</div>
+Built by [Adithya Poojary](https://adithyapoojary.is-a.dev), founder of ThreatScope. [More projects](https://adithyapoojary.is-a.dev/work/) · [LinkedIn](https://www.linkedin.com/in/adithyapoojary/)
